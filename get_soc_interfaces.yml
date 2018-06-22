@@ -1,0 +1,52 @@
+---
+
+- name: Get soc Interfaces
+  hosts: eos_ok
+  connection: local
+  gather_facts: false
+
+#  vars_prompt:
+#    - name: "username"
+#    - name: "password"
+
+#  vars:
+#    cli:
+#      host: "{{ inventory_hostname }}"
+#      username: "{{ username }}"
+#      password: "{{ password }}"
+
+  tasks:
+   - name: OBTAIN LOGIN CREDENTIALS
+     include_vars: password.yml
+
+   - name: DEFINE PROVIDER
+     set_fact:
+      provider:
+        username: "{{ creds['username'] }}"
+        password: "{{ creds['password'] }}"
+
+   - name: Get soc Interfaces
+     eos_command:
+      authorize: yes
+      provider: "{{ provider }}"
+      commands:
+        - show interfaces
+      timeout: 300
+     register: result
+
+   - local_action:
+       copy content={{ result.stdout[0] }}
+       dest=/applis/dcs/a468850/output/sh_int_{{ creds['time'] }}_{{ inventory_hostname }}
+   - name: parsing
+     shell: /applis/dcs/tools/python/bin/python3.6 /applis/dcs/a468850/playbooks/templates/my_textfsm.py  /applis/dcs/a468850/playbooks/templates/arista_eos_show_interfaces.template /applis/dcs/a468850/output/sh_int_{{ creds['time'] }}_{{ inventory_hostname }}
+     with_items: "{{ result.stdout[0] }}"
+   - name: Move directory
+     shell: mv /applis/dcs/a468850/output/sh_int_{{ creds['time'] }}_{{ inventory_hostname }}.csv /applis/dcs/a468850/input_splunk_soc/interfaces/
+     with_items: "{{ result.stdout[0] }}"
+   - name: cleaning
+     file:
+       path: /applis/dcs/a468850/output/sh_int_{{ creds['time'] }}_{{ inventory_hostname }}
+       state: absent
+
+
+
