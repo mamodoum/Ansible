@@ -1,0 +1,51 @@
+---
+
+- name: Get ASR route
+  hosts: ASR
+  connection: local
+  gather_facts: false
+
+#  vars_prompt:
+#    - name: "username"
+#    - name: "password"
+
+#  vars:
+#    cli:
+#      host: "{{ inventory_hostname }}"
+#      username: "{{ username }}"
+#      password: "{{ password }}"
+
+  tasks:
+   - name: OBTAIN LOGIN CREDENTIALS
+     include_vars: password.yml
+
+   - name: DEFINE PROVIDER
+     set_fact:
+      provider:
+        username: "{{ creds['username'] }}"
+        password: "{{ creds['password'] }}"
+
+   - name: Get ASR route
+     ios_command:
+      authorize: yes
+      provider: "{{ provider }}"
+      commands:
+        - show ip route
+
+     register: result
+
+   - local_action:
+       copy content={{ result.stdout[0] }}
+       dest=/applis/dcs/a468850/output/sh_route_{{ inventory_hostname }}
+   - name: parsing
+     shell: /applis/dcs/tools/python/bin/python3.6 /applis/dcs/a468850/playbooks/templates/my_textfsm.py  /applis/dcs/a468850/playbooks/templates/cisco_ios_show_ip_route.template /applis/dcs/a468850/output/sh_route_{{ inventory_hostname }}
+   - name: Move directory
+     shell: mv /applis/dcs/a468850/output/sh_route_{{ inventory_hostname }}.csv /applis/dcs/a468850/input_splunk_route/
+     with_items: "{{ result.stdout[0] }}"
+   - name: cleaning
+     file:
+       path: /applis/dcs/a468850/output/sh_route_{{ inventory_hostname }}
+       state: absent
+
+
+

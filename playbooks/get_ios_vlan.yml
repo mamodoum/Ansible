@@ -1,0 +1,52 @@
+---
+
+- name: Get No_ASR vlan
+  hosts: No_ASR
+  connection: local
+  gather_facts: false
+
+#  vars_prompt:
+#    - name: "username"
+#    - name: "password"
+
+#  vars:
+#    cli:
+#      host: "{{ inventory_hostname }}"
+#      username: "{{ username }}"
+#      password: "{{ password }}"
+
+  tasks:
+   - name: OBTAIN LOGIN CREDENTIALS
+     include_vars: password.yml
+
+   - name: DEFINE PROVIDER
+     set_fact:
+      provider:
+        username: "{{ creds['username'] }}"
+        password: "{{ creds['password'] }}"
+
+   - name: Get No_ASR vlan
+     ios_command:
+      authorize: yes
+      provider: "{{ provider }}"
+      commands:
+        - show vlan
+
+     register: result
+
+   - local_action:
+       copy content={{ result.stdout[0] }}
+       dest=/applis/dcs/a468850/output/sh_vlan_{{ inventory_hostname }}
+   - name: parsing
+     shell: /applis/dcs/tools/python/bin/python3.6 /applis/dcs/a468850/playbooks/templates/my_textfsm.py  /applis/dcs/a468850/playbooks/templates/cisco_ios_show_vlan.template /applis/dcs/a468850/output/sh_vlan_{{ inventory_hostname }}
+     with_items: "{{ result.stdout[0] }}"
+   - name: Move directory
+     shell: mv /applis/dcs/a468850/output/sh_vlan_{{ inventory_hostname }}.csv /applis/dcs/a468850/input_splunk_vlan/
+     with_items: "{{ result.stdout[0] }}"
+   - name: cleaning
+     file:
+       path: /applis/dcs/a468850/output/sh_vlan_{{ inventory_hostname }}
+       state: absent
+
+
+

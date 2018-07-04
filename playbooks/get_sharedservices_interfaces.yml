@@ -1,0 +1,93 @@
+---
+
+- name: Get shared services Interfaces
+  hosts: nexus_ok 
+  connection: local
+  gather_facts: false
+
+  tasks:
+   - name: Obtain credentials
+     include_vars: password.yml
+
+   - name: Define provider
+     set_fact:
+      provider:
+        username: "{{ creds['username'] }}"
+        password: "{{ creds['password'] }}"
+
+   - name: Get shared services Interfaces
+     nxos_command:
+ 
+      provider: "{{ provider }}"
+      commands:
+        - show interface
+      timeout: 300
+     register: result
+
+   - local_action:
+       copy content={{ result.stdout[0] }}
+       dest=/applis/dcs/a468850/output/sh_int_{{ creds['time'] }}_{{ inventory_hostname }}
+   - name: parsing
+     shell: /applis/dcs/tools/python/bin/python3.6 /applis/dcs/a468850/playbooks/templates/my_textfsm.py  /applis/dcs/a468850/playbooks/templates/cisco_nxos_show_interface.template /applis/dcs/a468850/output/sh_int_{{ creds['time'] }}_{{ inventory_hostname }}
+     with_items: "{{ result.stdout[0] }}"
+   - name: Move directory
+     shell: mv /applis/dcs/a468850/output/sh_int_{{ creds['time'] }}_{{ inventory_hostname }}.csv /applis/dcs/a468850/input_splunk_sharedservices/interfaces/
+     
+   - name: cleaning
+     file:
+       path: /applis/dcs/a468850/output/sh_int_{{ creds['time'] }}_{{ inventory_hostname }}
+       state: absent
+
+- name: Get shared services Interfaces
+  hosts: nexus_no_ok
+  connection: local
+  gather_facts: false
+
+  tasks:
+   - name: Obtain credentials
+     include_vars: password.yml
+
+   - name: Define provider
+     set_fact:
+      provider:
+        username: "{{ creds['username'] }}"
+        password: "{{ creds['password'] }}"
+
+   - name: Get shared services Interfaces
+     nxos_command:
+      
+      provider: "{{ provider }}"
+      commands:
+        - show interface
+      timeout: 300
+     register: result
+
+   - local_action:
+       copy content={{ result.stdout[0] }}
+       dest=/applis/dcs/a468850/output/sh_int_{{ creds['time'] }}_{{ inventory_hostname }}
+####### The file is parsed by the script "parsing_nexus"
+   - name: Parsing_Brut_Nexus5672
+     shell: /applis/dcs/tools/python/bin/python3.6 /applis/dcs/a468850/playbooks/templates/parsing_nexus5672.py /applis/dcs/a468850/output/sh_int_{{ creds['time'] }}_{{ inventory_hostname }}
+     
+###### Remove the output file created by Ansible Playbook (non parsed file)
+   - name: Remove_Brut_Output
+     file:
+       path: /applis/dcs/a468850/output/sh_int_{{ creds['time'] }}_{{ inventory_hostname }}
+       state: absent
+
+####### Rename the file parsed by the Script "parsing_nexus" like the name that Ansible had given
+   - name: Rename_Parsed_File
+     shell: mv /applis/dcs/a468850/output/sh_int_{{ creds['time'] }}_{{ inventory_hostname }}_2 /applis/dcs/a468850/output/sh_int_{{ creds['time'] }}_{{ inventory_hostname }}
+ 
+   - name: parsing
+     shell: /applis/dcs/tools/python/bin/python3.6 /applis/dcs/a468850/playbooks/templates/my_textfsm.py  /applis/dcs/a468850/playbooks/templates/cisco_nxos_show_interface.template /applis/dcs/a468850/output/sh_int_{{ creds['time'] }}_{{ inventory_hostname }}
+     with_items: "{{ result.stdout[0] }}"
+   - name: Move directory
+     shell: mv /applis/dcs/a468850/output/sh_int_{{ creds['time'] }}_{{ inventory_hostname }}.csv /applis/dcs/a468850/input_splunk_sharedservices/interfaces/
+
+   - name: cleaning
+     file:
+       path: /applis/dcs/a468850/output/sh_int_{{ creds['time'] }}_{{ inventory_hostname }}
+       state: absent
+
+
