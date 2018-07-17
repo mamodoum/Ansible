@@ -1,3 +1,3 @@
-# Ansible
+s# Ansible
 
-Syntax of playbook using parsing
+Syntax of playbook using parsing and some scripts Python
